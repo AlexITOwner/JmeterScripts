@@ -6,4 +6,5 @@ here I collect my scripts from JMeter.
 2.	userRegister.jmx - automatic generation of data for registering a new user, registration of a new user, automatic generation of data for changing data in an account, adding products to the wish list randomly using regex, while controller, beanshell sampler for counter.
    
 3.	ConcurrencyThread500.jmx -stress testing buyProduct.jmx scenario. 500VU, using Concurrency thread group plugin
+4.	Jenkinsfile is a pipeline code, for using CI/CD approach
  
