@@ -1,0 +1,80 @@
+pipeline {
+    agent any
+    
+     parameters {
+        choice(name: 'Environment', choices: ['Windows', 'Unix', 'MAC_OS'], description: 'Environment To Be Used')
+        choice(name: 'Type_of_API_test', choices: ['buyProduct', 'userRegister','ConcurencyThread500'], description: 'Type of Test To Be Executed')
+        password (name: 'Password', defaultValue: '12345', description: 'Enter a password' )
+        string(name: 'Threads', defaultValue: '3', description: 'Number of Threads To Be Used')
+        string(name: 'Loops', defaultValue: '3', description: 'Number of Loops To Be Used')
+        string(name: 'Rampup', defaultValue: '2', description: 'Number of Ramp-ups To Be Used')
+        string(name: 'Duration', defaultValue: '3780', description: 'Duration of Test')
+       // choice(name: 'ThreadGroup', choices: ['Register_vers.3_without_checks', 'BuyProduct_vers.4_without_checks', 'Buy_product_Concurrency_Thread_Group'], description: 'Select Thread Group')
+    }
+    
+    options { disableConcurrentBuilds()}
+    
+    stages {
+        stage('Clear data') {
+            steps {
+                echo "Remove old data"
+                bat "IF EXIST ${env.report_path} rename ${env.report_path} results_${env.BUILD_NUMBER}"
+                bat "mkdir ${env.report_path}"
+            }
+        }
+
+        stage('Jmeter Script Run') {
+            steps {
+             
+                script {
+                    def jmeterScript
+                    switch (params.Type_of_API_test) {
+                        case 'buyProduct':
+                            jmeterScript = 'buyProduct.jmx'
+                            break
+                        case 'userRegister':
+                            jmeterScript = 'userRegister.jmx'
+                            break
+                        case 'ConcurencyThread500':
+                            jmeterScript = 'ConcurencyThread500.jmx'
+                            break
+                        default:
+                            error("Invalid Thread Group selection")
+                    }
+                    
+                    bat "${env.jmeter_path} -n -t ${env.testplan_path}${jmeterScript} -l ${env.result_path}resRegister.jtl -e -o ${env.report_path} -Dthr=${params.Threads} -Dduration=${params.Duration} -Dloops=${params.Loops} -Dramp=${params.Rampup}"
+                }
+             
+                publishHTML(target: [allowMissing: false, alwaysLinkToLastBuild:
+                false, keepAll: true, reportDir: "${env.report_path}", 
+                reportFiles: 'index.html', reportName: 'Pipeline HTML Report', reportTitles: ''])
+                
+                perfReport errorFailedThreshold: 80, errorUnstableThreshold: 20, 
+                filterRegex: '', showTrendGraphs: true, sourceDataFiles: "${env.report_path}\\results.jtl"
+                
+            }
+       }
+       stage('Reports') {
+            steps {
+               bat "copy ${env.report_path}\\results.jtl"
+               
+               archiveArtifacts artifacts:'results.jtl'
+            }
+       }
+       
+    }
+    post{
+        always{
+            echo 'Build is assembled'
+        }
+         success{
+            echo 'Build is assembled successfully'
+        }
+        unstable{
+            echo 'Build is unstable'
+        }
+        failure{
+            echo 'Build is failure!'
+         }
+    }
+}
